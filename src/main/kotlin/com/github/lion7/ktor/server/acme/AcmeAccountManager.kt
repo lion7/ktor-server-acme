@@ -19,6 +19,7 @@ import java.security.cert.X509Certificate
 class AcmeAccountManager(
     certificateAuthority: String,
     private val contact: String,
+    private val agreeToTermsOfService: Boolean,
     private val keyStorePath: File,
     private val keyStorePassword: () -> CharArray,
     private val privateKeyPassword: () -> CharArray,
@@ -63,7 +64,9 @@ class AcmeAccountManager(
                 true -> addContact(contact)
                 false -> addEmail(contact)
             }
-            agreeToTermsOfService()
+            if (agreeToTermsOfService) {
+                agreeToTermsOfService()
+            }
             useKeyPair(keyPair)
         }.create(session)
         val certificate = CertificateUtils.createTlsAlpn01Certificate(keyPair, Identifier.dns(account.location.toString()), ByteArray(32))

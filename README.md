@@ -22,8 +22,21 @@ object JettyExample {
     @JvmStatic
     fun main(args: Array<String>) {
         val password: () -> CharArray = { "secret".toCharArray() }
-        val accountManager = AcmeAccountManager(AcmeCertificateAuthorities.LETSENCRYPT_STAGING.url, "acme@example.com", File("acme-account.p12"), password, password)
-        val acmeConnector = acmeConnector(accountManager, "example.com", File("acme-certs.p12"), password, password)
+        val acmeAccountManager = AcmeAccountManager(
+            certificateAuthority = AcmeCertificateAuthorities.LETSENCRYPT_STAGING.url,
+            contact = "acme@example.com",
+            agreeToTermsOfService = true,
+            keyStorePath = File("acme-account.p12"),
+            keyStorePassword = password,
+            privateKeyPassword = password
+        )
+        val acmeConnector = acmeConnector(
+            accountManager = acmeAccountManager,
+            domain = "example.com",
+            keyStorePath = File("acme-certs.p12"),
+            keyStorePassword = password,
+            privateKeyPassword = password
+        )
         val server = GlobalScope.embeddedServer(factory = Jetty, connectors = arrayOf(acmeConnector), configure = acmeConnector.configure) {
             routing {
                 get {
