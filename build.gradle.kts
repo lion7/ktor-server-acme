@@ -17,11 +17,16 @@ repositories {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core:2.0.0")
+    implementation("io.ktor:ktor-server-host-common-jvm:2.0.1")
+    implementation("io.ktor:ktor-server-jetty:2.0.1")
+    implementation("io.ktor:ktor-server-core-jvm:2.0.1")
+    implementation("io.ktor:ktor-server-auth-jwt:2.0.1")
     implementation("org.shredzone.acme4j:acme4j-client:2.12")
+    implementation("org.shredzone.acme4j:acme4j-utils:2.12")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.8.2")
-//    testImplementation("ch.qos.logback:logback-classic:1.2.10")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:1.6.20")
+    testImplementation("io.ktor:ktor-server-test-host:2.0.1")
+    testImplementation("ch.qos.logback:logback-classic:1.2.11")
 }
 
 java {
@@ -38,14 +43,14 @@ tasks {
         options.compilerArgs = listOf("-parameters", "-Werror")
         options.encoding = "UTF-8"
 
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
+        sourceCompatibility = "11"
+        targetCompatibility = "11"
     }
 
     withType<KotlinCompile> {
         kotlinOptions {
             freeCompilerArgs = listOf("-java-parameters", "-Xjsr305=strict", "-Werror")
-            jvmTarget = "1.8"
+            jvmTarget = "11"
         }
     }
 
