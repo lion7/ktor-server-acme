@@ -20,6 +20,25 @@ import java.security.PrivateKey
 import java.security.cert.X509Certificate
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
+
+fun acmeConnector(
+    certificateAuthority: String,
+    accountKeyPairFile: File,
+    contact: String,
+    agreeToTermsOfService: Boolean,
+    domain: String,
+    keyStorePath: File,
+    keyStorePassword: () -> CharArray,
+    privateKeyPassword: () -> CharArray,
+    builder: AcmeConnector.() -> Unit = {}
+): AcmeConnector = acmeConnector(
+    AcmeAccountManager(certificateAuthority, accountKeyPairFile, contact, agreeToTermsOfService),
+    domain, keyStorePath, keyStorePassword, privateKeyPassword, builder
+)
 
 fun acmeConnector(
     accountManager: AcmeAccountManager,
@@ -49,18 +68,27 @@ class AcmeConnector(
     override var trustStorePath: File? = null
     override var port: Int = 443
 
+    internal val certificate: X509Certificate?
+        get() = keyStore.getCertificate(keyAlias) as? X509Certificate
+
+    private val threadFactory: ThreadFactory = object : ThreadFactory {
+        override fun newThread(r: Runnable): Thread = thread(start = false, isDaemon = true, name = javaClass.simpleName) { r.run() }
+    }
+    private val executor = Executors.newSingleThreadScheduledExecutor(threadFactory)
     private val sslReloader = JettySslReloader()
 
     val configure: JettyApplicationEngineBase.Configuration.() -> Unit = {
         configureServer = {
             addEventListener(sslReloader)
             addEventListener(JettyAnlpRegistrar)
-            addLifeCycleListener(JettyStartedListener { orderCertificate() })
+            addLifeCycleListener(JettyStartedListener {
+                executor.scheduleWithFixedDelay(this@AcmeConnector::orderCertificate, 0, 1, TimeUnit.HOURS)
+            })
         }
     }
 
     private fun orderCertificate() {
-        val currentCertificate = keyStore.getCertificate(domain) as? X509Certificate
+        val currentCertificate = certificate
         if (currentCertificate == null || currentCertificate.notAfter.toInstant().isBefore(Instant.now().minus(Duration.ofDays(7)))) {
             val account = accountManager.getOrCreateAccount()
             val order = account.newOrder().domain(domain).create()
@@ -73,7 +101,12 @@ class AcmeConnector(
             order.update()
 
             if (order.status == Status.READY) {
-                val keyPair = KeyPairUtils.createKeyPair(2048)
+                val existingPrivateKey = keyStore.getKey(keyAlias, privateKeyPassword()) as? PrivateKey
+                val keyPair = if (currentCertificate != null && existingPrivateKey != null) {
+                    KeyPair(currentCertificate.publicKey, existingPrivateKey)
+                } else {
+                    KeyPairUtils.createKeyPair(2048)
+                }
                 val certificate = requestCertificate(order, keyPair)
                 if (certificate == null) {
                     println("Certificate is not available") // TODO: log
@@ -82,7 +115,7 @@ class AcmeConnector(
 
                 // add the requested certificate to the keystore
                 val chain = certificate.certificateChain.toTypedArray()
-                keyStore.setKeyEntry(domain, keyPair.private, privateKeyPassword(), chain)
+                keyStore.setKeyEntry(keyAlias, keyPair.private, privateKeyPassword(), chain)
 
                 // persist the updated keystore to disk
                 keyStorePath.outputStream().use { keyStore.store(it, keyStorePassword()) }

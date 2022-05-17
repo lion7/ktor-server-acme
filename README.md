@@ -21,21 +21,15 @@ object JettyExample {
     @DelicateCoroutinesApi
     @JvmStatic
     fun main(args: Array<String>) {
-        val password: () -> CharArray = { "secret".toCharArray() }
-        val acmeAccountManager = AcmeAccountManager(
-            certificateAuthority = AcmeCertificateAuthorities.LETSENCRYPT_STAGING.url,
+        val acmeConnector = acmeConnector(
+            certificateAuthority = AcmeCertificateAuthorities.PEBBLE.url,
+            accountKeyPairFile = File("acme-account.pem"),
             contact = "acme@example.com",
             agreeToTermsOfService = true,
-            keyStorePath = File("acme-account.p12"),
-            keyStorePassword = password,
-            privateKeyPassword = password
-        )
-        val acmeConnector = acmeConnector(
-            accountManager = acmeAccountManager,
             domain = "example.com",
             keyStorePath = File("acme-certs.p12"),
-            keyStorePassword = password,
-            privateKeyPassword = password
+            keyStorePassword = { "secret".toCharArray() },
+            privateKeyPassword = { "secret".toCharArray() }
         )
         val server = GlobalScope.embeddedServer(factory = Jetty, connectors = arrayOf(acmeConnector), configure = acmeConnector.configure) {
             routing {

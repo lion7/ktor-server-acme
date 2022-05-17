@@ -21,11 +21,12 @@ dependencies {
     implementation("io.ktor:ktor-server-jetty:2.0.1")
     implementation("io.ktor:ktor-server-core-jvm:2.0.1")
     implementation("io.ktor:ktor-server-auth-jwt:2.0.1")
-    implementation("org.shredzone.acme4j:acme4j-client:2.12")
-    implementation("org.shredzone.acme4j:acme4j-utils:2.12")
+    implementation("org.shredzone.acme4j:acme4j-client:2.13")
+    implementation("org.shredzone.acme4j:acme4j-utils:2.13")
 
-    testImplementation("org.jetbrains.kotlin:kotlin-test:1.6.20")
-    testImplementation("io.ktor:ktor-server-test-host:2.0.1")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.2")
+    testImplementation("org.testcontainers:testcontainers:1.17.1")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.1")
     testImplementation("ch.qos.logback:logback-classic:1.2.11")
 }
 
