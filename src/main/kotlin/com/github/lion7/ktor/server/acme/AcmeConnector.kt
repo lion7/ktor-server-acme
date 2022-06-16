@@ -81,9 +81,10 @@ class AcmeConnector(
     }
     private val executor = Executors.newSingleThreadScheduledExecutor(threadFactory)
     private val sslReloader = JettySslReloader()
+    private val selfSignedIssuerName = "CN=Ktor Acme Connector"
     private val selfSignedIssuer by lazy {
         CertificateUtils.createTestRootCertificate(
-            "CN=Ktor Acme Connector",
+            selfSignedIssuerName,
             Instant.parse("2000-01-01T00:00:00Z"),
             Instant.parse("2100-01-01T00:00:00Z"),
             KeyPairUtils.createKeyPair(2048)
@@ -103,7 +104,7 @@ class AcmeConnector(
     private fun orderCertificate() {
         val currentCertificate = certificate
         try {
-            if (currentCertificate == null || currentCertificate.notAfter.toInstant().isBefore(Instant.now().minus(Duration.ofDays(7)))) {
+            if (currentCertificate == null || currentCertificate.issuerX500Principal.name == selfSignedIssuerName || currentCertificate.notAfter.toInstant().isBefore(Instant.now().minus(Duration.ofDays(7)))) {
                 val account = accountManager.getOrCreateAccount()
                 val order = account.newOrder().domain(domain).create()
                 val authorization = order.authorizations.first { it.identifier.domain == domain }
