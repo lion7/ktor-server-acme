@@ -101,10 +101,13 @@ class AcmeConnector(
         }
     }
 
+    private fun X509Certificate?.needsRefresh() =
+        this == null || this.issuerX500Principal.name == selfSignedIssuerName || this.notAfter.toInstant().isBefore(Instant.now().minus(Duration.ofDays(7)))
+
     private fun orderCertificate() {
-        val currentCertificate = certificate
         try {
-            if (currentCertificate == null || currentCertificate.issuerX500Principal.name == selfSignedIssuerName || currentCertificate.notAfter.toInstant().isBefore(Instant.now().minus(Duration.ofDays(7)))) {
+            val currentCertificate = certificate
+            if (currentCertificate.needsRefresh()) {
                 val account = accountManager.getOrCreateAccount()
                 val order = account.newOrder().domain(domain).create()
                 val authorization = order.authorizations.first { it.identifier.domain == domain }
@@ -126,18 +129,20 @@ class AcmeConnector(
 
                     // add the requested certificate to the keystore
                     persistCertificateChain(keyPair.private, certificate.certificateChain)
+                } else {
+                    order.throwError()
                 }
             }
         } catch (e: Exception) {
             log.error("Failed to order certificate, retrying in 1 minute", e)
             executor.schedule(this::orderCertificate, 1, TimeUnit.MINUTES)
-            // Generate a self-signed certificate while waiting on ACME
-            if (certificate == null) {
-                try {
-                    createSelfSignedCertificate()
-                } catch (e: Exception) {
-                    log.error("Failed to generate self-signed certificate", e)
-                }
+        }
+        if (certificate == null) {
+            try {
+                // Generate a self-signed certificate while waiting on ACME
+                createSelfSignedCertificate()
+            } catch (e: Exception) {
+                log.error("Failed to generate self-signed certificate", e)
             }
         }
     }
@@ -198,7 +203,7 @@ class AcmeConnector(
             }
         }
 
-        return null
+        order.throwError()
     }
 
     private fun createSelfSignedCertificate() {
@@ -230,6 +235,11 @@ class AcmeConnector(
 
         // reload the Jetty SSL context factories
         sslReloader.reloadSslContextFactories()
+    }
+
+    private fun Order.throwError(): Nothing {
+        val error = error ?: throw IllegalStateException(status.name)
+        throw IllegalStateException("${error.type}: ${error.detail}")
     }
 
 }
