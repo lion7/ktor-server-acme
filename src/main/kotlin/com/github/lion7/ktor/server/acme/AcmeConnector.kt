@@ -126,6 +126,7 @@ class AcmeConnector(
                         KeyPairUtils.createKeyPair(2048)
                     }
                     val certificate = requestCertificate(order, keyPair) ?: throw IllegalStateException("Certificate is not available")
+                    log.info("Completed order, received certificate issued by ${certificate.certificate.issuerX500Principal} with subject ${certificate.certificate.subjectX500Principal}")
 
                     // add the requested certificate to the keystore
                     persistCertificateChain(keyPair.private, certificate.certificateChain)
