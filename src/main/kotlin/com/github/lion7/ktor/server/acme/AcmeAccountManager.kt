@@ -6,6 +6,7 @@ import org.shredzone.acme4j.Session
 import org.shredzone.acme4j.exception.AcmeServerException
 import org.shredzone.acme4j.util.KeyPairUtils
 import java.io.File
+import java.net.Proxy
 import java.security.KeyPair
 
 class AcmeAccountManager(
@@ -19,6 +20,10 @@ class AcmeAccountManager(
     private val keyPair: KeyPair = when (keyPairFile.exists()) {
         true -> keyPairFile.reader().use(KeyPairUtils::readKeyPair)
         false -> KeyPairUtils.createKeyPair(2048).also { keyPair -> keyPairFile.writer().use { KeyPairUtils.writeKeyPair(keyPair, it) } }
+    }
+
+    fun setProxy(proxy: Proxy) {
+        session.networkSettings().proxy = proxy
     }
 
     fun getOrCreateAccount(): Account =
