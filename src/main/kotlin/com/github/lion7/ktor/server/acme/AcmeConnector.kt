@@ -21,9 +21,12 @@ import java.io.File
 import java.security.KeyPair
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.cert.CertificateExpiredException
+import java.security.cert.CertificateNotYetValidException
 import java.security.cert.X509Certificate
 import java.time.Duration
 import java.time.Instant
+import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
@@ -101,12 +104,28 @@ class AcmeConnector(
         }
     }
 
+    private fun X509Certificate.isSelfSigned() =
+        this.issuerX500Principal.name == selfSignedIssuerName
+
+    private fun X509Certificate.expiresWithin(duration: Duration) = try {
+        checkValidity(Date.from(Instant.now().plus(duration)))
+        false
+    } catch (e: CertificateNotYetValidException) {
+        false
+    } catch (e: CertificateExpiredException) {
+        true
+    }
+
+    private fun X509Certificate.validity() =
+        Duration.between(Instant.now(), this.notAfter.toInstant())
+
     private fun X509Certificate?.needsRefresh() =
-        this == null || this.issuerX500Principal.name == selfSignedIssuerName || this.notAfter.toInstant().isBefore(Instant.now().minus(Duration.ofDays(7)))
+        this == null || isSelfSigned() || expiresWithin(Duration.ofDays(7))
 
     private fun orderCertificate() {
         try {
             val currentCertificate = certificate
+            log.info("Certificate remaining validity is ${certificate?.validity()}")
             if (currentCertificate.needsRefresh()) {
                 val account = accountManager.getOrCreateAccount()
                 val order = account.newOrder().domain(domain).create()
