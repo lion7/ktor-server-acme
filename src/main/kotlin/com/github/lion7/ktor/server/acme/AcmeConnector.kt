@@ -37,28 +37,28 @@ fun acmeConnector(
     accountKeyPairFile: File,
     contact: String,
     agreeToTermsOfService: Boolean,
-    domain: String,
+    domains: List<String>,
     keyStorePath: File,
     keyStorePassword: () -> CharArray,
     privateKeyPassword: () -> CharArray,
     builder: AcmeConnector.() -> Unit = {}
 ): AcmeConnector = acmeConnector(
     AcmeAccountManager(certificateAuthority, accountKeyPairFile, contact, agreeToTermsOfService),
-    domain, keyStorePath, keyStorePassword, privateKeyPassword, builder
+    domains, keyStorePath, keyStorePassword, privateKeyPassword, builder
 )
 
 fun acmeConnector(
     accountManager: AcmeAccountManager,
-    domain: String,
+    domains: List<String>,
     keyStorePath: File,
     keyStorePassword: () -> CharArray,
     privateKeyPassword: () -> CharArray,
     builder: AcmeConnector.() -> Unit = {}
-): AcmeConnector = AcmeConnector(accountManager, domain, keyStorePath, keyStorePassword, privateKeyPassword).apply(builder)
+): AcmeConnector = AcmeConnector(accountManager, domains, keyStorePath, keyStorePassword, privateKeyPassword).apply(builder)
 
 class AcmeConnector(
     private val accountManager: AcmeAccountManager,
-    private val domain: String,
+    private val domains: List<String>,
     override var keyStorePath: File,
     override var keyStorePassword: () -> CharArray,
     override var privateKeyPassword: () -> CharArray
@@ -70,7 +70,7 @@ class AcmeConnector(
             load(null, null)
         }
     }
-    override val keyAlias: String = domain
+    override val keyAlias: String = domains.hashCode().toString()
     override var trustStore: KeyStore? = null
     override var trustStorePath: File? = null
     override var port: Int = 443
@@ -79,10 +79,7 @@ class AcmeConnector(
         get() = keyStore.getCertificate(keyAlias) as? X509Certificate
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val threadFactory: ThreadFactory = object : ThreadFactory {
-        override fun newThread(r: Runnable): Thread = thread(start = false, isDaemon = true, name = javaClass.simpleName) { r.run() }
-    }
-    private val executor = Executors.newSingleThreadScheduledExecutor(threadFactory)
+    private val executor = Executors.newSingleThreadScheduledExecutor(NamedThreadFactory(javaClass.name))
     private val sslReloader = JettySslReloader()
     private val selfSignedIssuerName = "CN=Ktor Acme Connector"
     private val selfSignedIssuer by lazy {
@@ -125,16 +122,16 @@ class AcmeConnector(
     private fun orderCertificate() {
         try {
             val currentCertificate = certificate
-            log.info("Certificate remaining validity is ${certificate?.validity()}")
+            log.info("Certificate remaining validity is {}", certificate?.validity())
             if (currentCertificate.needsRefresh()) {
                 val account = accountManager.getOrCreateAccount()
-                val order = account.newOrder().domain(domain).create()
-                val authorization = order.authorizations.first { it.identifier.domain == domain }
+                val order = account.newOrder().domains(domains).create()
 
-                if (authorization.status == Status.PENDING) {
-                    executeTlsChallenge(authorization)
+                order.authorizations.forEach { authorization ->
+                    if (authorization.status == Status.PENDING) {
+                        executeTlsChallenge(authorization)
+                    }
                 }
-
                 order.update()
 
                 if (order.status == Status.READY) {
@@ -144,8 +141,8 @@ class AcmeConnector(
                     } else {
                         KeyPairUtils.createKeyPair(2048)
                     }
-                    val certificate = requestCertificate(order, keyPair) ?: throw IllegalStateException("Certificate is not available")
-                    log.info("Completed order, received certificate issued by ${certificate.certificate.issuerX500Principal} with subject ${certificate.certificate.subjectX500Principal}")
+                    val certificate = requestCertificate(order, keyPair)
+                    log.info("Completed order, received certificate issued by {} with subject {}", certificate.certificate.issuerX500Principal, certificate.certificate.subjectX500Principal)
 
                     // add the requested certificate to the keystore
                     persistCertificateChain(keyPair.private, certificate.certificateChain)
@@ -202,9 +199,9 @@ class AcmeConnector(
         sslReloader.reloadSslContextFactories()
     }
 
-    private fun requestCertificate(order: Order, keyPair: KeyPair): Certificate? {
+    private fun requestCertificate(order: Order, keyPair: KeyPair): Certificate {
         val certificateSigningRequest = CSRBuilder().apply {
-            addDomain(domain)
+            addDomains(domains)
             sign(keyPair)
         }.encoded
 
@@ -229,7 +226,7 @@ class AcmeConnector(
     private fun createSelfSignedCertificate() {
         val keyPair = KeyPairUtils.createKeyPair(2048)
         val certificateSigningRequest = CSRBuilder().apply {
-            addDomain(domain)
+            addDomains(domains)
             sign(keyPair)
         }.encoded
         val certificate = CertificateUtils.createTestCertificate(

@@ -1,6 +1,7 @@
 /.gradle/
 /.idea/
 /bin
+acme/
 build/
 node_modules/
 .vs/

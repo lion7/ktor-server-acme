@@ -1,10 +1,11 @@
 package com.github.lion7.ktor.server.acme
 
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.jetty.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.application.call
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.jetty.Jetty
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import org.junit.jupiter.api.AfterEach
@@ -59,7 +60,7 @@ internal class AcmeIntegrationTest {
             accountKeyPairFile = acmeAccount,
             contact = "acme@example.com",
             agreeToTermsOfService = true,
-            domain = "localhost",
+            domains = listOf("localhost", "alt.localhost"),
             keyStorePath = acmeCerts,
             keyStorePassword = { "secret".toCharArray() },
             privateKeyPassword = { "secret".toCharArray() }
@@ -80,7 +81,7 @@ internal class AcmeIntegrationTest {
             val request = HttpRequest.newBuilder().GET().uri(URI("https://localhost:5001")).build()
             val response = httpClient.send(request, BodyHandlers.discarding())
             val serverCertificate = response.sslSession().orElseThrow().peerCertificates.first() as X509Certificate
-            assertEquals("CN=localhost", serverCertificate.subjectX500Principal.name)
+            assertEquals(listOf("localhost", "alt.localhost"), serverCertificate.subjectAlternativeNames.flatMap { it.filterIsInstance<String>() })
             assertStartsWith("CN=Pebble Intermediate CA", serverCertificate.issuerX500Principal.name)
         } finally {
             engine.stop()
