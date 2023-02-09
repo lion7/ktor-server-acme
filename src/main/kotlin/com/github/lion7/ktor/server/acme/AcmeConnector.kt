@@ -28,9 +28,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Date
 import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 fun acmeConnector(
     certificateAuthority: String,
@@ -73,6 +71,7 @@ class AcmeConnector(
     override val keyAlias: String = domains.hashCode().toString()
     override var trustStore: KeyStore? = null
     override var trustStorePath: File? = null
+    override val enabledProtocols: List<String>? = null
     override var port: Int = 443
 
     internal val certificate: X509Certificate?

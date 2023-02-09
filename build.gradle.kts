@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `maven-publish`
-    kotlin("jvm") version "1.6.20"
-    id("org.jetbrains.dokka") version "1.6.20"
+    kotlin("jvm") version "1.8.10"
+    id("org.jetbrains.dokka") version "1.7.20"
     id("org.ajoberstar.grgit") version "5.0.0"
 }
 
@@ -17,17 +17,17 @@ repositories {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-host-common-jvm:2.0.1")
-    implementation("io.ktor:ktor-server-jetty:2.0.1")
-    implementation("io.ktor:ktor-server-core-jvm:2.0.1")
-    implementation("io.ktor:ktor-server-auth-jwt:2.0.1")
-    implementation("org.shredzone.acme4j:acme4j-client:2.13")
-    implementation("org.shredzone.acme4j:acme4j-utils:2.13")
+    implementation("io.ktor:ktor-server-host-common-jvm:2.2.3")
+    implementation("io.ktor:ktor-server-jetty:2.2.3")
+    implementation("io.ktor:ktor-server-core-jvm:2.2.3")
+    implementation("io.ktor:ktor-server-auth-jwt:2.2.3")
+    implementation("org.shredzone.acme4j:acme4j-client:2.15")
+    implementation("org.shredzone.acme4j:acme4j-utils:2.15")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.8.2")
-    testImplementation("org.testcontainers:testcontainers:1.17.1")
-    testImplementation("org.testcontainers:junit-jupiter:1.17.1")
-    testImplementation("ch.qos.logback:logback-classic:1.2.11")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
+    testImplementation("org.testcontainers:testcontainers:1.17.6")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.6")
+    testImplementation("ch.qos.logback:logback-classic:1.4.5")
 }
 
 java {
@@ -36,7 +36,7 @@ java {
 
 tasks {
     wrapper {
-        gradleVersion = "7.4.2"
+        gradleVersion = "7.6"
         distributionType = DistributionType.ALL
     }
 
